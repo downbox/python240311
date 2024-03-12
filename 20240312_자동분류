@@ -1,0 +1,39 @@
+import os
+import shutil
+
+# 다운로드 폴더의 경로
+downloads_path = r'c:\Users\student\Downloads'
+# 파일 종류별로 이동할 경로 설정
+dest_paths = {
+    'images': r'c:\Users\student\Downloads\images',
+    'data': r'c:\Users\student\Downloads\data',
+    'docs': r'c:\Users\student\Downloads\docs',
+    'archive': r'c:\Users\student\Downloads\archive',
+}
+
+# 경로에 해당하는 폴더가 없으면 생성
+for path in dest_paths.values():
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+# 다운로드 폴더 내의 파일들을 순회
+for filename in os.listdir(downloads_path):
+    src_path = os.path.join(downloads_path, filename)
+    
+    # 파일 종류에 따라 이동할 경로 결정
+    if filename.lower().endswith(('.jpg', '.jpeg')):
+        dest_folder = dest_paths['images']
+    elif filename.lower().endswith(('.csv', '.xlsx')):
+        dest_folder = dest_paths['data']
+    elif filename.lower().endswith(('.txt', '.doc', '.pdf')):
+        dest_folder = dest_paths['docs']
+    elif filename.lower().endswith('.zip'):
+        dest_folder = dest_paths['archive']
+    else:
+        # 지정된 파일 형식이 아닐 경우 건너뛰기
+        continue
+    
+    # 파일 이동
+    shutil.move(src_path, dest_folder)
+
+print("파일 이동 완료!")
