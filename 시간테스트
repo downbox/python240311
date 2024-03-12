@@ -1,0 +1,32 @@
+# from datetime import datetime, timedelta, timezone
+
+# # 한국 시간대로 현재 시간을 구하는 함수
+# def get_current_time_kst():
+#     kst = timezone(timedelta(hours=9))  # 한국 시간대 설정 (UTC+9)
+#     now = datetime.now(kst)
+#     return now.strftime("%Y-%m-%d %H:%M:%S")
+
+# dday = timedelta(days=100)
+
+# # 한국 시간대의 현재 시간 출력
+# current_time_kst = get_current_time_kst()
+# print("오늘날짜 : "+current_time_kst)
+# print("D-DAY 100일 후 : "+current_time_kst + dday)
+
+from datetime import datetime, timedelta, timezone
+
+# 한국 시간대로 현재 시간을 구하는 함수 (datetime 객체 반환)
+def get_current_datetime_kst():
+    kst = timezone(timedelta(hours=9))  # 한국 시간대 설정 (UTC+9)
+    now = datetime.now(kst)
+    return now
+
+dday = timedelta(days=100)
+
+# 한국 시간대의 현재 시간 출력 (datetime 객체 사용)
+current_datetime_kst = get_current_datetime_kst()
+print("오늘날짜 : " + current_datetime_kst.strftime("%Y-%m-%d %H:%M:%S"))
+
+# D-DAY 100일 후 계산 및 출력
+d_day_100 = current_datetime_kst + dday
+print("D-DAY 100일 후 : " + d_day_100.strftime("%Y-%m-%d %H:%M:%S"))

@@ -1,0 +1,13 @@
+import re
+
+f=open('c:\work\PV3.txt','rt')
+g=open('c:\work\PV3_copy.txt','wt', encoding='utf-8')
+
+line = f.readline()
+while (line != ''):
+    if (re.search("error", line)):
+        g.write(line + "\n")
+    line = f.readline()
+
+f.close()
+g.close()
