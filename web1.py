@@ -16,10 +16,12 @@ soup = BeautifulSoup(page, "html.parser")
 # 조건이 있는 경우 : <p class='outer-text'> 컨텐트</p>
 # class 키워드와 충돌이 발생하므로 class_ 를 사용
 # print(soup.find_all("p", class_="outer-text"))
-print(soup.find_all("p", attrs={"class":"outer-text"}))
+# print(soup.find_all("p", attrs={"class":"outer-text"}))
 
 # 태그의 내부 문자열만 가져오기 : .text 속성
-for tag in soup.find_all("p"):
-    title = tag.text.strip()
-    title = title.replace("\n","")
-    print(title)
+# for tag in soup.find_all("p"):
+#     title = tag.text.strip()
+#     title = title.replace("\n","")
+#     print(title)
+
+print(soup.find(id=="first"))
