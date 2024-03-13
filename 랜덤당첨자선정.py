@@ -1,54 +1,123 @@
-import tkinter as tk
-from tkinter import simpledialog, messagebox
+import sys
 import pandas as pd
 import random
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit
+from PyQt5.QtCore import pyqtSlot, QDateTime
 import pyperclip
 
-def copy_to_clipboard(data):
-    clipboard_string = ""
-    for index, row in data.iterrows():
-        clipboard_string += ", ".join(row.astype(str)) + "\n"
-    pyperclip.copy(clipboard_string)
-    messagebox.showinfo("알림", "클립보드에 복사되었습니다.")
-
-def start_lottery():
-    num_selections = simpledialog.askinteger("입력", "선정할 숫자를 입력하세요")
-    
-    try:
-        data = pd.read_csv('C:/random_result/list.csv', encoding='CP949')
-    except Exception as e:
-        messagebox.showerror("오류", "파일 읽기 오류: " + str(e))
-        return
-    
-    if num_selections and num_selections <= len(data):
-        result = data.sample(n=num_selections)
-        result.to_csv('C:/random_result/list_result.csv', index=False)
+class LotteryApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
         
-        # 결과를 표 형식으로 보여주기
-        for widget in frame.winfo_children():
-            widget.destroy()
-        for i, column in enumerate(result.columns):
-            tk.Label(frame, text=column).grid(row=0, column=i)
-        for i, row in result.iterrows():
-            for j, value in enumerate(row):
-                tk.Label(frame, text=value).grid(row=i+1, column=j)
-                
-        # 복사 버튼 활성화
-        copy_button["state"] = "normal"
-        copy_button["command"] = lambda: copy_to_clipboard(result)
-    else:
-        messagebox.showerror("오류", "선택한 숫자가 데이터 범위를 초과하였습니다.")
+    def initUI(self):
+        self.setWindowTitle('랜덤 추첨 프로그램')
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        
+        # 상단 툴바 레이아웃
+        self.toolbarLayout = QHBoxLayout()
+        
+        # '추첨시작' 버튼
+        self.btnDraw = QPushButton('추첨시작', self)
+        self.btnDraw.clicked.connect(self.draw)
+        self.toolbarLayout.addWidget(self.btnDraw)
+        
+        # '복사하기' 버튼
+        self.btnCopy = QPushButton('복사하기', self)
+        self.btnCopy.clicked.connect(self.copyResults)
+        self.toolbarLayout.addWidget(self.btnCopy)
+        
+        # '초기화' 버튼
+        self.btnReset = QPushButton('초기화', self)
+        self.btnReset.clicked.connect(self.resetFields)
+        self.toolbarLayout.addWidget(self.btnReset)
+        
+        # '추첨자수' 입력 필드
+        self.numWinnersLabel = QLabel('추첨자수:')
+        self.toolbarLayout.addWidget(self.numWinnersLabel)
+        self.numWinnersInput = QLineEdit(self)
+        self.toolbarLayout.addWidget(self.numWinnersInput)
+        
+        # '추첨자' 입력 필드
+        self.entrantLabel = QLabel('추첨자:')
+        self.toolbarLayout.addWidget(self.entrantLabel)
+        self.entrantInput = QLineEdit(self)
+        self.toolbarLayout.addWidget(self.entrantInput)
+        
+        # '추첨일시' 출력 필드
+        self.drawDateLabel = QLabel('추첨일시:')
+        self.toolbarLayout.addWidget(self.drawDateLabel)
+        self.drawDateTime = QDateTimeEdit(self)
+        self.drawDateTime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.drawDateTime.setReadOnly(True)
+        self.toolbarLayout.addWidget(self.drawDateTime)
+        
+        self.layout.addLayout(self.toolbarLayout)
+        
+        self.table = QTableWidget()
+        self.layout.addWidget(self.table)
 
-window = tk.Tk()
-window.title("랜덤 추첨 프로그램")
+        self.setGeometry(100, 100, 800, 400)  # 화면 가로 크기 확장
 
-start_button = tk.Button(window, text="추첨시작", command=start_lottery)
-start_button.pack()
+    @pyqtSlot()
+    def draw(self):
+        num_selections = int(self.numWinnersInput.text())
+        entrant = self.entrantInput.text()
+        current_time = QDateTime.currentDateTime()
+        self.drawDateTime.setDateTime(current_time)
+        
+        # 추첨 로직 (예시)
+        try:
+            data = pd.read_csv('C:/random_result/list.csv', encoding='CP949')
+            if num_selections > len(data):
+                raise ValueError("선택한 숫자가 데이터 범위를 초과하였습니다.")
+            
+            self.result = data.sample(n=num_selections)
+            self.showResults(self.result)
+            
+            # 결과 엑셀에 기록
+            with pd.ExcelWriter('C:/random_result/list_result.xlsx', mode='a', engine='openpyxl', encoding='CP949') as writer:
+                self.result.to_excel(writer, index=False, sheet_name='Results')
+                # 추첨자수, 추첨자, 추첨일시 하단에 기록
+                df_footer = pd.DataFrame({'추첨자수': [num_selections], '추첨자': [entrant], '추첨일시': [current_time.toString("yyyy-MM-dd HH:mm:ss")]})
+                df_footer.to_excel(writer, index=False, startrow=writer.sheets['Results'].max_row + 1)
 
-copy_button = tk.Button(window, text="결과 복사", state="disabled")
-copy_button.pack()
+        except Exception as e:
+            print(f"추첨 오류: {e}")
 
-frame = tk.Frame(window)
-frame.pack()
+    def showResults(self, data):
+        self.table.setRowCount(data.shape[0])
+        self.table.setColumnCount(data.shape[1])
+        self.table.setHorizontalHeaderLabels(data.columns)
+        
+        for row in range(data.shape[0]):
+            for column in range(data.shape[1]):
+                item = QTableWidgetItem(str(data.iloc[row, column]))
+                self.table.setItem(row, column, item)
 
-window.mainloop()
+    def copyResults(self):
+        result_string = ""
+        for row_index in range(self.table.rowCount()):
+            row_data = []
+            for column_index in range(self.table.columnCount()):
+                item = self.table.item(row_index, column_index)
+                row_data.append(item.text() if item else "")
+            result_string += '\t'.join(row_data) + '\n'
+        
+        pyperclip.copy(result_string)
+    
+    def resetFields(self):
+        # 필드 초기화
+        self.numWinnersInput.clear()
+        self.entrantInput.clear()
+        self.drawDateTime.clear()
+        # 결과 화면 초기화
+        self.table.clearContents()
+        self.table.setRowCount(0)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    ex = LotteryApp()
+    ex.show()
+    sys.exit(app.exec_())
