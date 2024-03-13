@@ -3,7 +3,9 @@ import pandas as pd
 import random
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit
 from PyQt5.QtCore import pyqtSlot, QDateTime
+from openpyxl import load_workbook
 import pyperclip
+import os
 
 class LotteryApp(QWidget):
     def __init__(self):
@@ -77,35 +79,46 @@ class LotteryApp(QWidget):
             self.showResults(self.result)
             
             # 결과 엑셀에 기록
-            with pd.ExcelWriter('C:/random_result/list_result.xlsx', mode='a', engine='openpyxl', encoding='CP949') as writer:
-                self.result.to_excel(writer, index=False, sheet_name='Results')
-                # 추첨자수, 추첨자, 추첨일시 하단에 기록
-                df_footer = pd.DataFrame({'추첨자수': [num_selections], '추첨자': [entrant], '추첨일시': [current_time.toString("yyyy-MM-dd HH:mm:ss")]})
-                df_footer.to_excel(writer, index=False, startrow=writer.sheets['Results'].max_row + 1)
-
+            excel_path = 'C:/random_result/list_result.xlsx'
+            if not os.path.exists(excel_path):
+                with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+                    self.result.to_excel(writer, index=False, sheet_name='Results')
+            else:
+                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a') as writer:
+                    book = load_workbook(excel_path)
+                    writer.book = book
+                    self.result.to_excel(writer, index=False, sheet_name='Results')
+                    # 추첨자수, 추첨자, 추첨일시 하단에 기록
+                    df_footer = pd.DataFrame({'추첨자수': [num_selections], '추첨자': [entrant], '추첨일시': [current_time.toString("yyyy-MM-dd HH:mm:ss")]})
+                    df_footer.to_excel(writer, index=False, startrow=book['Results'].max_row + 1)
         except Exception as e:
             print(f"추첨 오류: {e}")
 
     def showResults(self, data):
-        self.table.setRowCount(data.shape[0])
-        self.table.setColumnCount(data.shape[1])
+        self.table.setRowCount(len(data))
+        self.table.setColumnCount(len(data.columns))
         self.table.setHorizontalHeaderLabels(data.columns)
-        
-        for row in range(data.shape[0]):
-            for column in range(data.shape[1]):
-                item = QTableWidgetItem(str(data.iloc[row, column]))
-                self.table.setItem(row, column, item)
+
+        for i, row in data.iterrows():
+            for j, value in enumerate(row):
+                self.table.setItem(i, j, QTableWidgetItem(str(value)))
+
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
     def copyResults(self):
-        result_string = ""
-        for row_index in range(self.table.rowCount()):
-            row_data = []
-            for column_index in range(self.table.columnCount()):
-                item = self.table.item(row_index, column_index)
-                row_data.append(item.text() if item else "")
-            result_string += '\t'.join(row_data) + '\n'
-        
-        pyperclip.copy(result_string)
+        selection = self.table.selectedIndexes()
+        if selection:
+            rows = sorted(index.row() for index in selection)
+            if rows:
+                clipboard = ""
+                for row in rows:
+                    row_data = []
+                    for col in range(self.table.columnCount()):
+                        item = self.table.item(row, col)
+                        row_data.append(item.text())
+                    clipboard += "\t".join(row_data) + "\n"
+                pyperclip.copy(clipboard)
+
     
     def resetFields(self):
         # 필드 초기화
