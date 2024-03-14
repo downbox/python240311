@@ -16,7 +16,7 @@ clipboard.copy(loginID)
 driver.find_element(By.XPATH,'//*[@id="id"]').send_keys(
     Keys.CONTROL, 'v')
 
-loginPW = "dnaustks12#"
+loginPW = ""
 clipboard.copy(loginPW)
 driver.find_element(By.XPATH,'//*[@id="pw"]').send_keys(
     Keys.CONTROL, 'v')

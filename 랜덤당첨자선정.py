@@ -1,7 +1,6 @@
 import sys
 import pandas as pd
-import random
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit, QMessageBox
 from PyQt5.QtCore import pyqtSlot, QDateTime
 from openpyxl import load_workbook
 import pyperclip
@@ -13,11 +12,11 @@ class LotteryApp(QWidget):
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('랜덤 추첨 프로그램')
+        self.setWindowTitle('기흥효성해링턴 랜덤추첨 프로그램')
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         
-        # 상단 툴바 레이아웃
+        # 상단 버튼 툴바 레이아웃
         self.toolbarLayout = QHBoxLayout()
         
         # '추첨시작' 버튼
@@ -35,62 +34,91 @@ class LotteryApp(QWidget):
         self.btnReset.clicked.connect(self.resetFields)
         self.toolbarLayout.addWidget(self.btnReset)
         
+        # 입력 필드들을 담을 레이아웃
+        self.inputsLayout = QHBoxLayout()
+        
         # '추첨자수' 입력 필드
         self.numWinnersLabel = QLabel('추첨자수:')
-        self.toolbarLayout.addWidget(self.numWinnersLabel)
+        self.inputsLayout.addWidget(self.numWinnersLabel)
         self.numWinnersInput = QLineEdit(self)
-        self.toolbarLayout.addWidget(self.numWinnersInput)
+        self.inputsLayout.addWidget(self.numWinnersInput)
         
         # '추첨자' 입력 필드
         self.entrantLabel = QLabel('추첨자:')
-        self.toolbarLayout.addWidget(self.entrantLabel)
+        self.inputsLayout.addWidget(self.entrantLabel)
         self.entrantInput = QLineEdit(self)
-        self.toolbarLayout.addWidget(self.entrantInput)
-        
+        self.inputsLayout.addWidget(self.entrantInput)
+
+        # '추첨내용' 입력 필드 추가
+        self.drawContentLabel = QLabel('추첨내용:')
+        self.inputsLayout.addWidget(self.drawContentLabel)
+        self.drawContentInput = QLineEdit(self)
+        self.inputsLayout.addWidget(self.drawContentInput)
+
         # '추첨일시' 출력 필드
         self.drawDateLabel = QLabel('추첨일시:')
-        self.toolbarLayout.addWidget(self.drawDateLabel)
+        self.inputsLayout.addWidget(self.drawDateLabel)
         self.drawDateTime = QDateTimeEdit(self)
         self.drawDateTime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
         self.drawDateTime.setReadOnly(True)
-        self.toolbarLayout.addWidget(self.drawDateTime)
+        self.inputsLayout.addWidget(self.drawDateTime)
         
         self.layout.addLayout(self.toolbarLayout)
+        self.layout.addLayout(self.inputsLayout)
         
         self.table = QTableWidget()
         self.layout.addWidget(self.table)
 
         self.setGeometry(100, 100, 800, 400)  # 화면 가로 크기 확장
+        self.show()
 
     @pyqtSlot()
     def draw(self):
         num_selections = int(self.numWinnersInput.text())
         entrant = self.entrantInput.text()
+        draw_content = self.drawContentInput.text().strip()
         current_time = QDateTime.currentDateTime()
         self.drawDateTime.setDateTime(current_time)
+
+        # '추첨내용'과 '추첨자' 필드가 비어 있는지 검증
+        if not draw_content or len(draw_content) > 20 or not entrant:
+            QMessageBox.warning(self, "입력 오류", "추첨내용과 추첨자를 입력하세요. 추첨내용은 20자 이내여야 합니다.")
+            return
         
-        # 추첨 로직 (예시)
+        # TIMESTAMP_추첨내용_RESULT 형식으로 파일명 생성
+        timestamp = current_time.toString("yyyyMMddHHmmss")
+        filename_suffix = draw_content if len(draw_content) <= 20 else draw_content[:20]
+        excel_filename = f"{timestamp}_{filename_suffix}_RESULT.xlsx"
+
         try:
-            data = pd.read_csv('C:/random_result/list.csv', encoding='CP949')
+            # 엑셀 파일(.xlsx)에서 데이터를 읽습니다.
+            data = pd.read_excel('C:/random_result/list.xlsx', engine='openpyxl')
             if num_selections > len(data):
                 raise ValueError("선택한 숫자가 데이터 범위를 초과하였습니다.")
             
             self.result = data.sample(n=num_selections)
             self.showResults(self.result)
-            
-            # 결과 엑셀에 기록
-            excel_path = 'C:/random_result/list_result.xlsx'
-            if not os.path.exists(excel_path):
-                with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-                    self.result.to_excel(writer, index=False, sheet_name='Results')
+
+            # 엑셀에 추첨 결과 기록
+            excel_path = os.path.join('C:/random_result', excel_filename)
+            if os.path.exists(excel_path):
+                book = load_workbook(excel_path)
             else:
-                with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a') as writer:
-                    book = load_workbook(excel_path)
+                book = None
+
+            with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a' if book else 'w') as writer:
+                if book:
                     writer.book = book
-                    self.result.to_excel(writer, index=False, sheet_name='Results')
-                    # 추첨자수, 추첨자, 추첨일시 하단에 기록
-                    df_footer = pd.DataFrame({'추첨자수': [num_selections], '추첨자': [entrant], '추첨일시': [current_time.toString("yyyy-MM-dd HH:mm:ss")]})
-                    df_footer.to_excel(writer, index=False, startrow=book['Results'].max_row + 1)
+                    writer.sheets = {ws.title: ws for ws in book.worksheets}
+                
+                self.result.to_excel(writer, index=False, sheet_name='Results', startrow=writer.sheets['Results'].max_row if 'Results' in writer.sheets else 0)
+                # 추첨자수, 추첨자, 추첨일시 하단에 기록
+                df_footer = pd.DataFrame({
+                    '추첨자수': [num_selections],
+                    '추첨자': [entrant],
+                    '추첨일시': [current_time.toString("yyyy-MM-dd HH:mm:ss")]
+                })
+                df_footer.to_excel(writer, index=False, sheet_name='Footer', startrow=writer.book['Footer'].max_row if 'Footer' in writer.sheets else 0)
         except Exception as e:
             print(f"추첨 오류: {e}")
 
@@ -132,5 +160,4 @@ class LotteryApp(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = LotteryApp()
-    ex.show()
     sys.exit(app.exec_())
