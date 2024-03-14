@@ -1,10 +1,59 @@
 import sys
+import mysql.connector
 import pandas as pd
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit, QMessageBox
+from PyQt5.QtWidgets import QApplication, QWidget, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit, QMessageBox
 from PyQt5.QtCore import pyqtSlot, QDateTime
 from openpyxl import load_workbook
 import pyperclip
 import os
+
+class LoginDialog(QDialog):
+    def __init__(self, database_config):
+        super().__init__()
+        self.database_config = database_config
+        self.setupUI()
+
+    def setupUI(self):
+        self.setWindowTitle("로그인")
+        layout = QVBoxLayout(self)
+
+        # ID 입력
+        self.idLabel = QLabel("ID:")
+        self.idInput = QLineEdit()
+        layout.addWidget(self.idLabel)
+        layout.addWidget(self.idInput)
+
+        # Password 입력
+        self.pwLabel = QLabel("Password:")
+        self.pwInput = QLineEdit()
+        self.pwInput.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.pwLabel)
+        layout.addWidget(self.pwInput)
+
+        # 로그인 버튼
+        self.loginButton = QPushButton("로그인")
+        self.loginButton.clicked.connect(self.check_credentials)
+        layout.addWidget(self.loginButton)
+
+    def check_credentials(self):
+        id_ = self.idInput.text()
+        pw_ = self.pwInput.text()
+
+        # 데이터베이스 접속
+        try:
+            conn = mysql.connector.connect(**self.database_config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM aptspace.user WHERE id = %s AND password = %s", (id_, pw_))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if result:
+                self.accept()  # 로그인 성공
+            else:
+                QMessageBox.warning(self, "오류", "ID나 Password가 잘못되었습니다.")
+        except mysql.connector.Error as err:
+            QMessageBox.warning(self, "오류", f"데이터베이스 연결 실패: {err}")
 
 class LotteryApp(QWidget):
     def __init__(self):
@@ -159,5 +208,20 @@ class LotteryApp(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = LotteryApp()
+
+    # 데이터베이스 설정
+    db_config = {
+        'user': 'aptspace',
+        'password': 'dnaustkd12#',
+        'host': 'my8003.gabiadb.com',
+        'port': 3306,
+        'database': 'aptspace',
+        'raise_on_warnings': True,
+    }
+
+    # 로그인 대화상자 표시
+    login_dialog = LoginDialog(db_config)
+    if login_dialog.exec_() == QDialog.Accepted:
+        main_window = LotteryApp()
+        main_window.show()
     sys.exit(app.exec_())
