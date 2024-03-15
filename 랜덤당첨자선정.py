@@ -1,5 +1,6 @@
 import sys
-import mysql.connector
+# import mysql.connector
+import pymysql
 import pandas as pd
 from PyQt5.QtWidgets import QApplication, QWidget, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDateTimeEdit, QMessageBox
 from PyQt5.QtCore import pyqtSlot, QDateTime
@@ -39,9 +40,19 @@ class LoginDialog(QDialog):
         id_ = self.idInput.text()
         pw_ = self.pwInput.text()
 
+        try:
+            connection = pymysql.connect(**db_config)
+            print("연결 성공")
+            # 데이터베이스 작업 수행
+            connection.close()
+        except pymysql.MySQLError as e:
+            print(f"연결 실패: {e}")
+
         # 데이터베이스 접속
         try:
-            conn = mysql.connector.connect(**self.database_config)
+            # conn = mysql.connector.connect(**self.database_config)
+            conn = pymysql.connect(**db_config)
+            print("연결 성공")
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM aptspace.user WHERE id = %s AND password = %s", (id_, pw_))
             result = cursor.fetchone()
@@ -52,8 +63,10 @@ class LoginDialog(QDialog):
                 self.accept()  # 로그인 성공
             else:
                 QMessageBox.warning(self, "오류", "ID나 Password가 잘못되었습니다.")
-        except mysql.connector.Error as err:
-            QMessageBox.warning(self, "오류", f"데이터베이스 연결 실패: {err}")
+        # except mysql.connector.Error as err:
+        #     QMessageBox.warning(self, "오류", f"데이터베이스 연결 실패: {err}")
+        except pymysql.MySQLError as e:
+            print(f"연결 실패: {e}")
 
 class LotteryApp(QWidget):
     def __init__(self):
@@ -210,14 +223,24 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     # 데이터베이스 설정
+    # db_config = {
+    #     'user': 'aptspace',
+    #     'password': 'dnaustkd12#',
+    #     'host': 'my8003.gabiadb.com',
+    #     'port': 3306,
+    #     'database': 'aptspace',
+    #     'auth_plugin': 'mysql_native_password'
+    # }
+
     db_config = {
-        'user': 'aptspace',
-        'password': 'dnaustkd12#',
-        'host': 'my8003.gabiadb.com',
-        'port': 3306,
-        'database': 'aptspace',
-        'raise_on_warnings': True,
-    }
+    'user': 'aptspace',
+    'password': 'dnaustk12#',
+    'host': 'my8003.gabiadb.com',
+    'db': 'aptspace',
+    'port': 3306,
+    'charset': 'utf8mb4',
+    'cursorclass': pymysql.cursors.DictCursor
+}
 
     # 로그인 대화상자 표시
     login_dialog = LoginDialog(db_config)
