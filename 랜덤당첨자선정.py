@@ -234,7 +234,7 @@ if __name__ == '__main__':
 
     db_config = {
     'user': 'aptspace',
-    'password': 'dnaustk12#',
+    'password': 'dnaustks12#',
     'host': 'my8003.gabiadb.com',
     'db': 'aptspace',
     'port': 3306,
